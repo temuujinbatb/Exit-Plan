@@ -1,4 +1,6 @@
 import SwiftUI
+import Contacts
+import ContactsUI
 
 // MARK: - Trigger Mode
 
@@ -23,6 +25,7 @@ struct ContentView: View {
     @EnvironmentObject var notificationManager:  NotificationManager
     @EnvironmentObject var contactStore:         ContactStore
     @EnvironmentObject var messageTemplateStore: MessageTemplateStore
+    @EnvironmentObject var authManager:          AuthManager
 
     @AppStorage("triggerMode")              private var triggerModeRaw:          String = TriggerMode.call.rawValue
     @AppStorage("selectedContactID")        private var selectedContactID:       String = ""
@@ -71,6 +74,20 @@ struct ContentView: View {
             }
             .navigationTitle("Exit Plan")
             .animation(.default, value: triggerModeRaw)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        ProfileView()
+                            .environmentObject(authManager)
+                            .environmentObject(contactStore)
+                            .environmentObject(messageTemplateStore)
+                    } label: {
+                        Image(systemName: "person.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
         }
         // In-call full-screen
         .fullScreenCover(isPresented: $showInCallView) {
@@ -485,8 +502,10 @@ struct TemplatePickerView: View {
 
 struct ContactsEditView: View {
     @EnvironmentObject var store: ContactStore
-    @State private var editingContact: Contact? = nil
-    @State private var showAddSheet = false
+    @State private var editingContact: Contact?  = nil
+    @State private var showAddSheet              = false
+    @State private var showImportPicker          = false
+    @State private var importedCNContacts: [CNContact] = []
 
     var body: some View {
         List {
@@ -510,19 +529,77 @@ struct ContactsEditView: View {
         .navigationTitle("Contacts")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showAddSheet = true } label: { Image(systemName: "plus") }
+                Menu {
+                    Button {
+                        showImportPicker = true
+                    } label: {
+                        Label("Import from Contacts", systemImage: "person.crop.circle.badge.plus")
+                    }
+                    Button {
+                        showAddSheet = true
+                    } label: {
+                        Label("Add Manually", systemImage: "square.and.pencil")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
             }
             ToolbarItem(placement: .navigationBarLeading) { EditButton() }
         }
         .sheet(item: $editingContact) { contact in
-            ContactEditSheet(contact: contact) { updated in
-                store.update(updated)
-            }
+            ContactEditSheet(contact: contact) { updated in store.update(updated) }
         }
         .sheet(isPresented: $showAddSheet) {
-            ContactEditSheet(contact: nil) { newContact in
-                store.add(newContact)
-            }
+            ContactEditSheet(contact: nil) { newContact in store.add(newContact) }
+        }
+        .sheet(isPresented: $showImportPicker) {
+            DeviceContactPicker(onSelect: { cnContacts in
+                for cn in cnContacts {
+                    let name  = [cn.givenName, cn.familyName]
+                        .filter { !$0.isEmpty }.joined(separator: " ")
+                    let phone = cn.phoneNumbers.first.map {
+                        $0.value.stringValue
+                    } ?? ""
+                    guard !name.isEmpty else { continue }
+                    // Skip duplicates
+                    if store.contacts.contains(where: { $0.name == name }) { continue }
+                    store.add(Contact(name: name, phoneNumber: phone))
+                }
+            })
+        }
+    }
+}
+
+// MARK: - Device Contact Picker (CNContactPickerViewController wrapper)
+
+struct DeviceContactPicker: UIViewControllerRepresentable {
+    let onSelect: ([CNContact]) -> Void
+
+    func makeUIViewController(context: Context) -> CNContactPickerViewController {
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        // Only show contacts that have a phone number
+        picker.predicateForEnablingContact = NSPredicate(
+            format: "phoneNumbers.@count > 0"
+        )
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: CNContactPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject, CNContactPickerDelegate {
+        let parent: DeviceContactPicker
+        init(_ parent: DeviceContactPicker) { self.parent = parent }
+
+        // Multi-select
+        func contactPicker(_ picker: CNContactPickerViewController, didSelectContacts contacts: [CNContact]) {
+            parent.onSelect(contacts)
+        }
+        // Single-select fallback
+        func contactPicker(_ picker: CNContactPickerViewController, didSelectContact contact: CNContact) {
+            parent.onSelect([contact])
         }
     }
 }
