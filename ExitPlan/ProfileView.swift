@@ -7,95 +7,142 @@ struct ProfileView: View {
     @EnvironmentObject var authManager:          AuthManager
     @EnvironmentObject var contactStore:         ContactStore
     @EnvironmentObject var messageTemplateStore: MessageTemplateStore
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dismiss) private var dismiss
 
     @State private var showChangePassword = false
     @State private var showDeleteAccount  = false
     @State private var showLegal          = false
 
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
+
+    private var initials: String {
+        String((authManager.user?.email ?? "?").prefix(1)).uppercased()
+    }
+
     var body: some View {
-        List {
-            // ── User info ──────────────────────────────────────────────
-            Section {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(LinearGradient(
-                                colors: [Color.green, Color(red: 0.1, green: 0.6, blue: 0.2)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            ))
-                            .frame(width: 56, height: 56)
-                        Text(initials)
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(authManager.user?.email ?? "—")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.primary)
-                        Text("Exit Plan member")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+        EPScreen {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
 
-            // ── Manage ─────────────────────────────────────────────────
-            Section("Manage") {
-                NavigationLink("Contacts") {
-                    ContactsEditView().environmentObject(contactStore)
-                }
-                NavigationLink("Messages") {
-                    MessagesEditView().environmentObject(messageTemplateStore)
-                }
-            }
-
-            // ── Security ───────────────────────────────────────────────
-            Section("Security") {
-                Button {
-                    showChangePassword = true
-                } label: {
-                    Label("Change Password", systemImage: "lock.rotation")
-                        .foregroundStyle(.primary)
-                }
-
-                Button(role: .destructive) {
-                    showDeleteAccount = true
-                } label: {
-                    Label("Delete Account", systemImage: "person.crop.circle.badge.minus")
-                }
-            }
-
-            // ── Legal ──────────────────────────────────────────────────
-            Section("Legal") {
-                Button {
-                    showLegal = true
-                } label: {
-                    Label("Terms & Privacy", systemImage: "doc.text")
-                        .foregroundStyle(.primary)
-                }
-            }
-
-            // ── Sign Out ───────────────────────────────────────────────
-            Section {
-                Button(role: .destructive) {
-                    authManager.signOut()
-                } label: {
+                    // Header row
                     HStack {
+                        Text("Profile")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(t.ink)
                         Spacer()
-                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                            .font(.headline)
-                        Spacer()
+                        EPCircleButton(size: 38, accent: false, action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(t.inkSoft)
+                        }
                     }
+                    .padding(.top, 8)
+
+                    // Avatar + email card
+                    EPCard(padding: 20) {
+                        HStack(spacing: 16) {
+                            EPAvatar(name: initials, size: 56)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(authManager.user?.email ?? "—")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(t.ink)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                                Text("Exit Plan member")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(t.inkFaint)
+                            }
+                            Spacer()
+                        }
+                    }
+
+                    // Manage
+                    EPCard(padding: 16) {
+                        EPLabel(text: "Manage")
+                        Spacer().frame(height: 12)
+                        VStack(spacing: 8) {
+                            NavigationLink {
+                                ContactsEditView().environmentObject(contactStore)
+                            } label: {
+                                profileRow(icon: "person.2.fill", label: "Contacts")
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider().opacity(0.3)
+
+                            NavigationLink {
+                                MessagesEditView().environmentObject(messageTemplateStore)
+                            } label: {
+                                profileRow(icon: "text.bubble.fill", label: "Messages")
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Security
+                    EPCard(padding: 16) {
+                        EPLabel(text: "Security")
+                        Spacer().frame(height: 12)
+                        VStack(spacing: 8) {
+                            Button { showChangePassword = true } label: {
+                                profileRow(icon: "lock.rotation", label: "Change Password")
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider().opacity(0.3)
+
+                            Button { showDeleteAccount = true } label: {
+                                profileRow(icon: "person.crop.circle.badge.minus", label: "Delete Account", destructive: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Legal
+                    EPCard(padding: 16) {
+                        EPLabel(text: "Legal")
+                        Spacer().frame(height: 12)
+                        Button { showLegal = true } label: {
+                            profileRow(icon: "doc.text", label: "Terms & Privacy")
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Sign Out
+                    Button {
+                        authManager.signOut()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Sign Out")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundStyle(.red.opacity(0.85))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(t.bg)
+                                .shadow(color: t.shadowDark,  radius: 8, x: 6, y: 6)
+                                .shadow(color: t.shadowLight, radius: 8, x: -6, y: -6)
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer(minLength: 40)
                 }
+                .padding(.horizontal, 20)
             }
         }
-        .navigationTitle("Profile")
+        .navigationBarHidden(true)
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
+                .environmentObject(authManager)
         }
         .alert("Delete Account", isPresented: $showDeleteAccount) {
             DeleteAccountAlert()
+                .environmentObject(authManager)
         } message: {
             Text("This will permanently delete your account and all local data. This cannot be undone.")
         }
@@ -104,9 +151,23 @@ struct ProfileView: View {
         }
     }
 
-    private var initials: String {
-        let email = authManager.user?.email ?? ""
-        return String(email.prefix(1)).uppercased()
+    // MARK: - Profile Row
+
+    private func profileRow(icon: String, label: String, destructive: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(destructive ? .red.opacity(0.8) : Color.epAccentDeep)
+                .frame(width: 20)
+            Text(label)
+                .font(.system(size: 15))
+                .foregroundStyle(destructive ? .red.opacity(0.8) : t.ink)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(t.inkFaint)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -167,9 +228,7 @@ struct ChangePasswordSheet: View {
               let email = user.email else { return }
         isLoading = true
         message   = nil
-
         do {
-            // Re-authenticate first (Firebase requires it for sensitive ops)
             let credential = EmailAuthProvider.credential(withEmail: email, password: currentPassword)
             try await user.reauthenticate(with: credential)
             try await user.updatePassword(to: newPassword)
@@ -205,12 +264,8 @@ struct DeleteAccountAlert: View {
         do {
             let credential = EmailAuthProvider.credential(withEmail: email, password: password)
             try await user.reauthenticate(with: credential)
-
-            // Wipe local data
             UserDefaults.standard.removeObject(forKey: "contacts_v2")
             UserDefaults.standard.removeObject(forKey: "message_templates_v2")
-
-            // Delete Firebase account
             try await user.delete()
             authManager.signOut()
         } catch {
@@ -253,7 +308,7 @@ struct LegalView: View {
     private var legalSections: [(title: String, body: String)] {[
         (
             "Terms of Use",
-            "By using Exit Plan ("the App"), you agree to these terms. The App is intended for personal use as a social escape tool. You agree not to use the App to deceive emergency services, harass others, or engage in any unlawful activity. Misuse of the App is solely your responsibility."
+            "By using Exit Plan (the App), you agree to these terms. The App is intended for personal use as a social escape tool. You agree not to use the App to deceive emergency services, harass others, or engage in any unlawful activity. Misuse of the App is solely your responsibility."
         ),
         (
             "No Emergency Use",

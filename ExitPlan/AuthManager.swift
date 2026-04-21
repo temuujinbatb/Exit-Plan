@@ -71,10 +71,14 @@ final class AuthManager: ObservableObject {
 
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
 
-        guard
-            let scene    = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
-            let rootVC   = await scene.windows.first?.rootViewController
-        else {
+        // UIApplication must be accessed on the main thread
+        let rootVC: UIViewController? = await MainActor.run {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?.windows.first?.rootViewController
+        }
+
+        guard let rootVC else {
             await setLoading(false)
             return
         }

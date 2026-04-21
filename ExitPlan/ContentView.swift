@@ -36,16 +36,19 @@ struct ContentView: View {
     @AppStorage("comboMessageInterval")     private var comboMessageInterval:    Double = 10.0
     @AppStorage("comboDelayBeforeCall")     private var comboDelayBeforeCall:    Double = 10.0
 
-    // In-call overlay
-    @State private var showInCallView = false
-
-    // Countdown state (call / message modes)
-    @State private var countdownRemaining: Int? = nil    // nil = idle
-    @State private var pendingNotifID: String?  = nil    // ID to cancel if user bails
+    @State private var showInCallView        = false
+    @State private var showContactPicker     = false
+    @State private var showTemplatePicker    = false
+    @State private var showProfileSheet      = false
+    @State private var countdownRemaining: Int?         = nil
+    @State private var pendingNotifID: String?          = nil
     @State private var countdownTask: Task<Void, Never>? = nil
 
     @StateObject private var combo = ComboManager.shared
 
+    @Environment(\.colorScheme) private var scheme
+
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
     private var mode: TriggerMode { TriggerMode(rawValue: triggerModeRaw) ?? .call }
 
     private var selectedContact: Contact {
@@ -62,37 +65,55 @@ struct ContentView: View {
             ?? MessageTemplate(text: "Call me back immediately.")
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            List {
-                modePicker
-                contactSection
-                settingsSection
-                triggerSection
-                manageSection
-                setupSection
-            }
-            .navigationTitle("Exit Plan")
-            .animation(.default, value: triggerModeRaw)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        ProfileView()
-                            .environmentObject(authManager)
-                            .environmentObject(contactStore)
-                            .environmentObject(messageTemplateStore)
-                    } label: {
-                        Image(systemName: "person.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.green)
+            EPScreen {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        headerRow
+                        modeSegment
+                        contactCard
+                        settingsCard
+                        triggerArea
+                        manageRow
+                        setupCard
+                        Spacer(minLength: 80)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
                 }
             }
+            .navigationBarHidden(true)
         }
         // In-call full-screen
         .fullScreenCover(isPresented: $showInCallView) {
             InCallView(onMinimize: { showInCallView = false })
                 .environmentObject(callManager)
+        }
+        // Profile sheet
+        .sheet(isPresented: $showProfileSheet) {
+            NavigationStack {
+                ProfileView()
+                    .environmentObject(authManager)
+                    .environmentObject(contactStore)
+                    .environmentObject(messageTemplateStore)
+            }
+        }
+        // Contact picker sheet
+        .sheet(isPresented: $showContactPicker) {
+            NavigationStack {
+                ContactPickerView(selectedID: $selectedContactID)
+                    .environmentObject(contactStore)
+            }
+        }
+        // Template picker sheet
+        .sheet(isPresented: $showTemplatePicker) {
+            NavigationStack {
+                TemplatePickerView(selectedID: $selectedTemplateID)
+                    .environmentObject(messageTemplateStore)
+            }
         }
         // In-call floating banner when minimized
         .safeAreaInset(edge: .bottom) {
@@ -104,267 +125,489 @@ struct ContentView: View {
         }
         .onChange(of: callManager.isCallActive) { _, active in
             if active {
-                clearCountdown()        // countdown done, call fired
+                clearCountdown()
                 showInCallView = true
             }
         }
         .onChange(of: triggerModeRaw) { _, _ in
-            clearCountdown()            // reset when switching modes
+            clearCountdown()
         }
     }
 
-    // MARK: - Mode Picker
+    // MARK: - Header
 
-    private var modePicker: some View {
-        Section {
-            Picker("Mode", selection: $triggerModeRaw) {
-                ForEach(TriggerMode.allCases, id: \.rawValue) { m in
-                    Label(m.rawValue, systemImage: m.icon).tag(m.rawValue)
-                }
+    private var headerRow: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("EXIT PLAN")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(3)
+                    .foregroundStyle(t.inkFaint)
+                Text("Ready when you are")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(t.ink)
             }
-            .pickerStyle(.segmented)
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            Spacer()
+            EPCircleButton(size: 42, accent: false, action: { showProfileSheet = true }) {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(t.inkSoft)
+            }
         }
+        .padding(.top, 8)
     }
 
-    // MARK: - Contact
+    // MARK: - Mode Segment
 
-    private var contactSection: some View {
-        Section {
-            NavigationLink {
-                ContactPickerView(selectedID: $selectedContactID)
-                    .environmentObject(contactStore)
-            } label: {
-                HStack {
-                    Text("Contact")
-                        .foregroundStyle(.primary)
+    private var modeSegment: some View {
+        EPSegmented(
+            selection: $triggerModeRaw,
+            options: TriggerMode.allCases.map { (value: $0.rawValue, label: $0.rawValue, icon: $0.icon) }
+        )
+        .animation(.spring(response: 0.3), value: triggerModeRaw)
+    }
+
+    // MARK: - Contact Card
+
+    private var contactCard: some View {
+        EPCard(padding: 16) {
+            EPLabel(text: "Contact")
+            Spacer().frame(height: 12)
+            Button { showContactPicker = true } label: {
+                HStack(spacing: 12) {
+                    EPAvatar(name: selectedContact.name, size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selectedContact.name)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(t.ink)
+                        Text(selectedContact.phoneNumber)
+                            .font(.system(size: 13))
+                            .foregroundStyle(t.inkSoft)
+                    }
                     Spacer()
-                    Text(selectedContact.name)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(t.inkFaint)
                 }
             }
-        } header: {
-            Text("Who")
+            .buttonStyle(.plain)
         }
     }
 
-    // MARK: - Settings (mode-specific)
+    // MARK: - Settings Card (mode-specific)
 
     @ViewBuilder
-    private var settingsSection: some View {
+    private var settingsCard: some View {
         switch mode {
         case .call:
-            delaySection(label: "Delay before call")
+            delayCard(label: "Delay before call", value: $triggerDelay, range: 3...30)
 
         case .message:
-            Section {
-                NavigationLink {
-                    TemplatePickerView(selectedID: $selectedTemplateID)
-                        .environmentObject(messageTemplateStore)
-                } label: {
-                    HStack {
-                        Text("Message")
-                        Spacer()
-                        Text(selectedTemplate.text)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: 200, alignment: .trailing)
+            VStack(spacing: 14) {
+                EPCard(padding: 16) {
+                    EPLabel(text: "Message")
+                    Spacer().frame(height: 12)
+                    Button { showTemplatePicker = true } label: {
+                        HStack {
+                            Text(selectedTemplate.text)
+                                .font(.system(size: 15))
+                                .foregroundStyle(t.ink)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(t.inkFaint)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
-            } header: {
-                Text("What to Send")
+                delayCard(label: "Delay before notification", value: $triggerDelay, range: 3...30)
             }
-            delaySection(label: "Delay before notification")
 
         case .combo:
-            Section {
-                Stepper(
-                    "Messages: \(comboMessageCount)",
-                    value: $comboMessageCount,
-                    in: 1...min(8, messageTemplateStore.templates.count)
-                )
+            EPCard(padding: 16) {
+                EPLabel(text: "Combo Settings")
+                Spacer().frame(height: 14)
 
-                sliderRow(
-                    label: "Delay before first message",
-                    value: $comboFirstMessageDelay,
-                    range: 3...30
-                )
+                // Message count stepper
+                HStack {
+                    Text("Messages")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(t.ink)
+                    Spacer()
+                    HStack(spacing: 0) {
+                        Button {
+                            if comboMessageCount > 1 { comboMessageCount -= 1 }
+                        } label: {
+                            Image(systemName: "minus")
+                                .frame(width: 32, height: 32)
+                                .foregroundStyle(t.inkSoft)
+                        }
+                        Text("\(comboMessageCount)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.epAccentDeep)
+                            .frame(width: 32)
+                        Button {
+                            let max = min(8, messageTemplateStore.templates.count)
+                            if comboMessageCount < max { comboMessageCount += 1 }
+                        } label: {
+                            Image(systemName: "plus")
+                                .frame(width: 32, height: 32)
+                                .foregroundStyle(t.inkSoft)
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(t.bgDeep)
+                            .shadow(color: t.shadowDark,  radius: 3, x: 2, y: 2)
+                            .shadow(color: t.shadowLight, radius: 3, x: -2, y: -2)
+                    )
+                }
 
-                sliderRow(
-                    label: "Interval between messages",
-                    value: $comboMessageInterval,
-                    range: 5...30
-                )
+                Divider().padding(.vertical, 8).opacity(0.4)
 
-                sliderRow(
-                    label: "Delay before call",
-                    value: $comboDelayBeforeCall,
-                    range: 5...30
-                )
-            } header: {
-                Text("Combo Settings")
-            } footer: {
-                Text("Sends the first \(comboMessageCount) messages from your Messages list in order, then calls. Reorder them in Manage > Messages to control the escalation.")
+                sliderBlock(label: "Delay before 1st message", value: $comboFirstMessageDelay, range: 3...30)
+                Spacer().frame(height: 14)
+                sliderBlock(label: "Interval between messages", value: $comboMessageInterval, range: 5...30)
+                Spacer().frame(height: 14)
+                sliderBlock(label: "Delay before call", value: $comboDelayBeforeCall, range: 5...30)
+
+                Divider().padding(.vertical, 8).opacity(0.4)
+
+                Text("Messages are sent in order from your Messages list. Drag to reorder.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(t.inkFaint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
-    private func delaySection(label: String) -> some View {
-        Section {
-            sliderRow(label: label, value: $triggerDelay, range: 3...30)
-        } header: {
-            Text("Timing")
+    private func delayCard(label: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        EPCard(padding: 16) {
+            EPLabel(text: "Timing")
+            Spacer().frame(height: 14)
+            sliderBlock(label: label, value: value, range: range)
         }
     }
 
-    private func sliderRow(label: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func sliderBlock(label: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        VStack(spacing: 12) {
             HStack {
                 Text(label)
+                    .font(.system(size: 14))
+                    .foregroundStyle(t.inkSoft)
                 Spacer()
                 Text("\(Int(value.wrappedValue))s")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(t.ink)
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: range, step: 1).tint(.blue)
+            EPSlider(value: value, range: range, step: 1)
         }
     }
 
-    // MARK: - Trigger Section
+    // MARK: - Trigger Area
 
     @ViewBuilder
-    private var triggerSection: some View {
-        Section {
-            switch mode {
+    private var triggerArea: some View {
+        switch mode {
+        case .call:
+            if let remaining = countdownRemaining {
+                countdownView(remaining: remaining, total: Int(triggerDelay), label: "Calling", color: .epAccent) {
+                    cancelPending()
+                }
+            } else {
+                triggerButton(label: "CALL", icon: "phone.fill", accent: true) {
+                    callManager.triggerFakeCall(from: selectedContact, delay: triggerDelay)
+                    startCountdown(seconds: Int(triggerDelay))
+                }
+            }
 
-            // ── Call ──────────────────────────────────────────────────────
-            case .call:
+        case .message:
+            if notificationManager.isPermissionGranted {
                 if let remaining = countdownRemaining {
-                    countdownRow(remaining: remaining, color: .green) {
+                    countdownView(remaining: remaining, total: Int(triggerDelay), label: "Sending", color: .epAccent) {
                         cancelPending()
                     }
                 } else {
-                    triggerButton(title: "Trigger Fake Call", icon: "phone.fill", color: .green) {
-                        callManager.triggerFakeCall(from: selectedContact, delay: triggerDelay)
+                    triggerButton(label: "SEND", icon: "bell.fill", accent: true) {
+                        let id = notificationManager.scheduleNotification(
+                            contactName: selectedContact.name,
+                            messageText: selectedTemplate.text,
+                            delay: triggerDelay
+                        )
+                        pendingNotifID = id
                         startCountdown(seconds: Int(triggerDelay))
                     }
                 }
+            } else {
+                triggerButton(label: "ALLOW", icon: "bell.slash.fill", accent: false) {
+                    Task { await notificationManager.requestPermission() }
+                }
+            }
 
-            // ── Message ───────────────────────────────────────────────────
-            case .message:
-                if notificationManager.isPermissionGranted {
-                    if let remaining = countdownRemaining {
-                        countdownRow(remaining: remaining, color: .blue) {
-                            cancelPending()
+        case .combo:
+            if combo.isRunning {
+                EPCard(padding: 20) {
+                    VStack(spacing: 16) {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(Color.epAccent)
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(combo.isRunning ? 1.4 : 1.0)
+                                .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: combo.isRunning)
+                            Text("Combo Running")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(t.ink)
+                            Spacer()
                         }
-                    } else {
-                        triggerButton(title: "Send Notification", icon: "bell.badge.fill", color: .blue) {
-                            let id = notificationManager.scheduleNotification(
-                                contactName: selectedContact.name,
-                                messageText: selectedTemplate.text,
-                                delay: triggerDelay
+                        Text("Messages sending, call incoming soon…")
+                            .font(.system(size: 13))
+                            .foregroundStyle(t.inkSoft)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            combo.cancel()
+                        } label: {
+                            HStack {
+                                Image(systemName: "xmark")
+                                Text("Cancel Combo")
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.red.opacity(0.8))
                             )
-                            pendingNotifID = id
-                            startCountdown(seconds: Int(triggerDelay))
                         }
-                    }
-                } else {
-                    triggerButton(title: "Allow Notifications", icon: "bell.slash.fill", color: .orange) {
-                        Task { await notificationManager.requestPermission() }
+                        .buttonStyle(.plain)
                     }
                 }
+            } else {
+                triggerButton(label: "COMBO", icon: "bolt.fill", accent: true) {
+                    combo.trigger(
+                        contact: selectedContact,
+                        templates: messageTemplateStore.templates,
+                        messageCount: comboMessageCount,
+                        firstMessageDelay: comboFirstMessageDelay,
+                        messageInterval: comboMessageInterval,
+                        delayBeforeCall: comboDelayBeforeCall
+                    )
+                }
+            }
+        }
+    }
 
-            // ── Combo ─────────────────────────────────────────────────────
-            case .combo:
-                if combo.isRunning {
-                    Button(role: .destructive) {
-                        combo.cancel()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Label("Cancel Combo", systemImage: "xmark.circle.fill")
-                                .font(.headline)
-                            Spacer()
-                        }
-                    }
-                } else {
-                    triggerButton(title: "Trigger Combo", icon: "bolt.fill", color: .purple) {
-                        combo.trigger(
-                            contact: selectedContact,
-                            templates: messageTemplateStore.templates,
-                            messageCount: comboMessageCount,
-                            firstMessageDelay: comboFirstMessageDelay,
-                            messageInterval: comboMessageInterval,
-                            delayBeforeCall: comboDelayBeforeCall
+    // MARK: - Trigger Button (large circular)
+
+    private func triggerButton(label: String, icon: String, accent: Bool, action: @escaping () -> Void) -> some View {
+        VStack(spacing: 14) {
+            Button(action: action) {
+                ZStack {
+                    // Outer neumorphic ring
+                    Circle()
+                        .fill(t.bg)
+                        .shadow(color: t.shadowDark,  radius: 14, x: 10, y: 10)
+                        .shadow(color: t.shadowLight, radius: 14, x: -10, y: -10)
+                        .frame(width: 170, height: 170)
+                    // Inner gradient fill
+                    Circle()
+                        .fill(
+                            accent
+                            ? AnyShapeStyle(LinearGradient(
+                                colors: [.epAccent, .epAccentDeep],
+                                startPoint: .topLeading, endPoint: .bottomTrailing))
+                            : AnyShapeStyle(t.bgDeep)
                         )
+                        .frame(width: 138, height: 138)
+                    // Icon + label
+                    VStack(spacing: 8) {
+                        Image(systemName: icon)
+                            .font(.system(size: 32, weight: .medium))
+                            .foregroundStyle(accent ? .white : t.inkSoft)
+                        Text(label)
+                            .font(.system(size: 11, weight: .semibold))
+                            .tracking(2.5)
+                            .foregroundStyle(accent ? .white.opacity(0.85) : t.inkFaint)
                     }
                 }
             }
+            .buttonStyle(.plain)
 
-        } footer: {
-            switch mode {
-            case .call:
-                if let remaining = countdownRemaining {
-                    Text("Calling in \(remaining)s… tap Cancel to abort.")
-                } else {
-                    Text("Fake call from \(selectedContact.name) rings in \(Int(triggerDelay))s.")
+            statusFootnote
+        }
+    }
+
+    // MARK: - Countdown Arc View
+
+    private func countdownView(remaining: Int, total: Int, label: String, color: Color, onCancel: @escaping () -> Void) -> some View {
+        VStack(spacing: 16) {
+            ZStack {
+                // Neumorphic outer ring
+                Circle()
+                    .fill(t.bg)
+                    .shadow(color: t.shadowDark,  radius: 14, x: 10, y: 10)
+                    .shadow(color: t.shadowLight, radius: 14, x: -10, y: -10)
+                    .frame(width: 170, height: 170)
+
+                // Background track
+                Circle()
+                    .stroke(t.bgDeep, lineWidth: 10)
+                    .frame(width: 130, height: 130)
+
+                // Progress arc
+                Circle()
+                    .trim(from: 0, to: total > 0 ? CGFloat(remaining) / CGFloat(total) : 0)
+                    .stroke(
+                        LinearGradient(colors: [.epAccent, .epAccentDeep], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                    )
+                    .frame(width: 130, height: 130)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1), value: remaining)
+
+                // Center content
+                VStack(spacing: 4) {
+                    Text("\(remaining)")
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(t.ink)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(countsDown: true))
+                        .animation(.default, value: remaining)
+                    Text(label + "…")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(1.5)
+                        .foregroundStyle(t.inkFaint)
                 }
-            case .message:
-                if let remaining = countdownRemaining {
-                    Text("Notification in \(remaining)s… tap Cancel to abort.")
-                } else {
-                    Text("Notification from \(selectedContact.name) fires in \(Int(triggerDelay))s.")
+            }
+
+            // Cancel capsule
+            Button(action: onCancel) {
+                HStack(spacing: 8) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Cancel")
+                        .font(.system(size: 14, weight: .semibold))
                 }
-            case .combo:
-                if combo.isRunning {
-                    Text("Combo running — messages sending, call incoming soon.")
-                } else {
-                    let totalTime = Int(comboFirstMessageDelay + Double(comboMessageCount - 1) * comboMessageInterval + comboDelayBeforeCall)
-                    Text("\(comboMessageCount) messages from \(selectedContact.name), then a call ~\(totalTime)s total.")
+                .foregroundStyle(t.inkSoft)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .fill(t.bg)
+                        .shadow(color: t.shadowDark,  radius: 6, x: 4, y: 4)
+                        .shadow(color: t.shadowLight, radius: 6, x: -4, y: -4)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Status Footnote
+
+    @ViewBuilder
+    private var statusFootnote: some View {
+        switch mode {
+        case .call:
+            footnote("Rings from \(selectedContact.name) in \(Int(triggerDelay))s")
+        case .message:
+            if notificationManager.isPermissionGranted {
+                footnote("Notification from \(selectedContact.name) in \(Int(triggerDelay))s")
+            } else {
+                footnote("Tap to enable notifications")
+            }
+        case .combo:
+            let total = Int(comboFirstMessageDelay + Double(comboMessageCount - 1) * comboMessageInterval + comboDelayBeforeCall)
+            footnote("\(comboMessageCount) messages then a call — ~\(total)s total")
+        }
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(t.inkFaint)
+            .multilineTextAlignment(.center)
+    }
+
+    // MARK: - Manage Row
+
+    private var manageRow: some View {
+        EPCard(padding: 16) {
+            EPLabel(text: "Manage")
+            Spacer().frame(height: 12)
+            HStack(spacing: 12) {
+                NavigationLink {
+                    ContactsEditView().environmentObject(contactStore)
+                } label: {
+                    manageChip(icon: "person.2.fill", label: "Contacts")
                 }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    MessagesEditView().environmentObject(messageTemplateStore)
+                } label: {
+                    manageChip(icon: "text.bubble.fill", label: "Messages")
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 
-    // MARK: - Trigger helpers
-
-    private func triggerButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Spacer()
-                Label(title, systemImage: icon)
-                    .font(.headline)
-                    .foregroundStyle(color)
-                Spacer()
-            }
-        }
-    }
-
-    private func countdownRow(remaining: Int, color: Color, onCancel: @escaping () -> Void) -> some View {
-        HStack {
-            // Countdown pill
-            HStack(spacing: 6) {
-                Image(systemName: "clock.fill")
-                Text("Triggering in \(remaining)s")
-                    .monospacedDigit()
-            }
-            .font(.headline)
-            .foregroundStyle(color)
-
+    private func manageChip(icon: String, label: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.epAccentDeep)
+            Text(label)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(t.ink)
             Spacer()
-
-            // Cancel button
-            Button(role: .destructive, action: onCancel) {
-                Label("Cancel", systemImage: "xmark.circle.fill")
-                    .font(.subheadline.bold())
-            }
-            .buttonStyle(.borderless)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(t.inkFaint)
         }
-        .animation(.default, value: remaining)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(t.bgDeep)
+                .shadow(color: t.shadowDark,  radius: 4, x: 3, y: 3)
+                .shadow(color: t.shadowLight, radius: 4, x: -3, y: -3)
+        )
     }
 
-    // MARK: - Countdown logic
+    // MARK: - Setup Card
+
+    private var setupCard: some View {
+        EPCard(padding: 16) {
+            EPLabel(text: "Action Button Setup", trailing: "iPhone 15 Pro+")
+            Spacer().frame(height: 12)
+            VStack(alignment: .leading, spacing: 10) {
+                setupStep(1, "Open Settings on your iPhone")
+                setupStep(2, "Tap Action Button")
+                setupStep(3, "Swipe to Shortcut → Choose a Shortcut")
+                setupStep(4, "Search \"Fake Call\", \"Fake Message\", or \"Combo Escape\"")
+                setupStep(5, "Select and you're done")
+            }
+        }
+    }
+
+    private func setupStep(_ n: Int, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(n)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(Color.epAccentDeep))
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(t.inkSoft)
+        }
+    }
+
+    // MARK: - Countdown Logic
 
     private func startCountdown(seconds: Int) {
         countdownRemaining = seconds
@@ -397,50 +640,6 @@ struct ContentView: View {
         countdownTask      = nil
         countdownRemaining = nil
     }
-
-    // MARK: - Manage
-
-    private var manageSection: some View {
-        Section("Manage") {
-            NavigationLink("Contacts") {
-                ContactsEditView().environmentObject(contactStore)
-            }
-            NavigationLink("Messages") {
-                MessagesEditView().environmentObject(messageTemplateStore)
-            }
-        }
-    }
-
-    // MARK: - Setup
-
-    private var setupSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 12) {
-                step(1, "Open **Settings** on your iPhone")
-                step(2, "Tap **Action Button**")
-                step(3, "Swipe to **Shortcut** → Choose a Shortcut")
-                step(4, "Search **\"Fake Call\"**, **\"Fake Message\"**, or **\"Combo Escape\"**")
-                step(5, "Select and you're done")
-            }
-            .padding(.vertical, 4)
-        } header: {
-            Text("Action Button Setup")
-        } footer: {
-            Text("Requires iPhone 15 Pro or later.")
-        }
-    }
-
-    private func step(_ n: Int, _ text: LocalizedStringKey) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("\(n)")
-                .font(.caption2.bold())
-                .foregroundStyle(.white)
-                .frame(width: 20, height: 20)
-                .background(Color.blue)
-                .clipShape(Circle())
-            Text(text).font(.subheadline)
-        }
-    }
 }
 
 // MARK: - Contact Picker
@@ -448,27 +647,46 @@ struct ContentView: View {
 struct ContactPickerView: View {
     @EnvironmentObject var store: ContactStore
     @Binding var selectedID: String
+    @Environment(\.colorScheme) private var scheme
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
 
     var body: some View {
-        List {
-            ForEach(store.contacts) { contact in
-                Button {
-                    selectedID = contact.id.uuidString
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(contact.name).foregroundStyle(.primary)
-                            Text(contact.phoneNumber).font(.caption).foregroundStyle(.secondary)
+        EPScreen {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 10) {
+                    ForEach(store.contacts) { contact in
+                        Button {
+                            selectedID = contact.id.uuidString
+                        } label: {
+                            EPCard(padding: 14) {
+                                HStack(spacing: 12) {
+                                    EPAvatar(name: contact.name, size: 38)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(contact.name)
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundStyle(t.ink)
+                                        Text(contact.phoneNumber)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(t.inkSoft)
+                                    }
+                                    Spacer()
+                                    if contact.id.uuidString == selectedID {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.epAccent)
+                                            .font(.system(size: 18))
+                                    }
+                                }
+                            }
                         }
-                        Spacer()
-                        if contact.id.uuidString == selectedID {
-                            Image(systemName: "checkmark").foregroundStyle(.blue).fontWeight(.semibold)
-                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
             }
         }
         .navigationTitle("Choose Contact")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -477,24 +695,41 @@ struct ContactPickerView: View {
 struct TemplatePickerView: View {
     @EnvironmentObject var store: MessageTemplateStore
     @Binding var selectedID: String
+    @Environment(\.colorScheme) private var scheme
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
 
     var body: some View {
-        List {
-            ForEach(store.templates) { t in
-                Button {
-                    selectedID = t.id.uuidString
-                } label: {
-                    HStack {
-                        Text(t.text).foregroundStyle(.primary)
-                        Spacer()
-                        if t.id.uuidString == selectedID {
-                            Image(systemName: "checkmark").foregroundStyle(.blue).fontWeight(.semibold)
+        EPScreen {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 10) {
+                    ForEach(store.templates) { template in
+                        Button {
+                            selectedID = template.id.uuidString
+                        } label: {
+                            EPCard(padding: 14) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Text(template.text)
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(t.ink)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer()
+                                    if template.id.uuidString == selectedID {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.epAccent)
+                                            .font(.system(size: 18))
+                                    }
+                                }
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
             }
         }
         .navigationTitle("Choose Message")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -505,7 +740,6 @@ struct ContactsEditView: View {
     @State private var editingContact: Contact?  = nil
     @State private var showAddSheet              = false
     @State private var showImportPicker          = false
-    @State private var importedCNContacts: [CNContact] = []
 
     var body: some View {
         List {
@@ -513,7 +747,8 @@ struct ContactsEditView: View {
                 Button {
                     editingContact = contact
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        EPAvatar(name: contact.name, size: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(contact.name).foregroundStyle(.primary).font(.body)
                             Text(contact.phoneNumber).font(.caption).foregroundStyle(.secondary)
@@ -557,11 +792,8 @@ struct ContactsEditView: View {
                 for cn in cnContacts {
                     let name  = [cn.givenName, cn.familyName]
                         .filter { !$0.isEmpty }.joined(separator: " ")
-                    let phone = cn.phoneNumbers.first.map {
-                        $0.value.stringValue
-                    } ?? ""
+                    let phone = cn.phoneNumbers.first.map { $0.value.stringValue } ?? ""
                     guard !name.isEmpty else { continue }
-                    // Skip duplicates
                     if store.contacts.contains(where: { $0.name == name }) { continue }
                     store.add(Contact(name: name, phoneNumber: phone))
                 }
@@ -578,10 +810,7 @@ struct DeviceContactPicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> CNContactPickerViewController {
         let picker = CNContactPickerViewController()
         picker.delegate = context.coordinator
-        // Only show contacts that have a phone number
-        picker.predicateForEnablingContact = NSPredicate(
-            format: "phoneNumbers.@count > 0"
-        )
+        picker.predicateForEnablingContact = NSPredicate(format: "phoneNumbers.@count > 0")
         return picker
     }
 
@@ -593,12 +822,10 @@ struct DeviceContactPicker: UIViewControllerRepresentable {
         let parent: DeviceContactPicker
         init(_ parent: DeviceContactPicker) { self.parent = parent }
 
-        // Multi-select
-        func contactPicker(_ picker: CNContactPickerViewController, didSelectContacts contacts: [CNContact]) {
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
             parent.onSelect(contacts)
         }
-        // Single-select fallback
-        func contactPicker(_ picker: CNContactPickerViewController, didSelectContact contact: CNContact) {
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
             parent.onSelect([contact])
         }
     }
@@ -687,16 +914,19 @@ struct MessagesEditView: View {
             ToolbarItem(placement: .navigationBarLeading) { EditButton() }
         }
         .sheet(item: $editingTemplate) { template in
-            MessageEditSheet(template: template) { updated in
-                store.update(updated)
-            }
+            MessageEditSheet(template: template) { updated in store.update(updated) }
         }
         .sheet(isPresented: $showAddSheet) {
-            MessageEditSheet(template: nil) { newTemplate in
-                store.add(newTemplate)
-            }
+            MessageEditSheet(template: nil) { newTemplate in store.add(newTemplate) }
         }
-        .navigationFooter("In Combo mode, messages are sent in this order. Drag to reorder.")
+        .safeAreaInset(edge: .bottom) {
+            Text("In Combo mode, messages are sent in this order. Drag to reorder.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -744,21 +974,6 @@ struct MessageEditSheet: View {
                     .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-        }
-    }
-}
-
-// MARK: - View helper
-
-private extension View {
-    func navigationFooter(_ text: String) -> some View {
-        self.safeAreaInset(edge: .bottom) {
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

@@ -16,7 +16,7 @@ final class CallManager: NSObject, ObservableObject, CXProviderDelegate {
     @Published var callStartTime: Date? = nil
 
     override init() {
-        let config = CXProviderConfiguration(localizedName: "mobile")
+        let config = CXProviderConfiguration()
         config.supportsVideo            = false
         config.maximumCallsPerCallGroup = 1
         config.supportedHandleTypes     = [.phoneNumber]

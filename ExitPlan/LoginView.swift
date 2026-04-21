@@ -9,6 +9,7 @@ private enum AuthMode { case signIn, register }
 
 struct LoginView: View {
     @StateObject private var auth = AuthManager.shared
+    @Environment(\.colorScheme) private var scheme
 
     @State private var mode: AuthMode    = .signIn
     @State private var email            = ""
@@ -19,171 +20,195 @@ struct LoginView: View {
 
     private enum Field { case email, password, confirm }
 
-    var body: some View {
-        ZStack {
-            // Background
-            LinearGradient(
-                colors: [Color(red: 0.27, green: 0.82, blue: 0.39),
-                         Color(red: 0.11, green: 0.67, blue: 0.24)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
 
-            ScrollView {
+    var body: some View {
+        EPScreen {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
                     // Logo area
-                    VStack(spacing: 8) {
-                        Image(systemName: "phone.arrow.down.left.fill")
-                            .font(.system(size: 56, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text("Exit Plan")
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.white)
-                        Text("Your emergency escape button")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.85))
+                    VStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(t.bg)
+                                .shadow(color: t.shadowDark,  radius: 14, x: 10, y: 10)
+                                .shadow(color: t.shadowLight, radius: 14, x: -10, y: -10)
+                                .frame(width: 88, height: 88)
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [.epAccent, .epAccentDeep],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .frame(width: 68, height: 68)
+                            Image(systemName: "phone.arrow.down.left.fill")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.bottom, 6)
+
+                        Text("EXIT PLAN")
+                            .font(.system(size: 13, weight: .semibold))
+                            .tracking(4)
+                            .foregroundStyle(t.inkFaint)
+                        Text("Your emergency escape")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(t.ink)
                     }
                     .padding(.top, 64)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 36)
 
                     // Card
-                    VStack(spacing: 20) {
+                    EPCard(radius: 26, padding: 24) {
+                        VStack(spacing: 20) {
 
-                        // Mode toggle
-                        Picker("", selection: $mode) {
-                            Text("Sign In").tag(AuthMode.signIn)
-                            Text("Register").tag(AuthMode.register)
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.bottom, 4)
-
-                        // Fields
-                        VStack(spacing: 12) {
-                            InputField(
-                                icon: "envelope.fill",
-                                placeholder: "Email",
-                                text: $email,
-                                keyboardType: .emailAddress,
-                                isSecure: false,
-                                showSecret: .constant(false)
+                            // Mode toggle
+                            EPSegmented(
+                                selection: Binding(
+                                    get: { mode == .signIn ? "signIn" : "register" },
+                                    set: { mode = $0 == "signIn" ? .signIn : .register }
+                                ),
+                                options: [
+                                    (value: "signIn",   label: "Sign In",  icon: "person.fill"),
+                                    (value: "register", label: "Register", icon: "person.badge.plus")
+                                ]
                             )
-                            .focused($focus, equals: .email)
-                            .submitLabel(.next)
-                            .onSubmit { focus = .password }
+                            .animation(.spring(response: 0.3), value: mode)
 
-                            InputField(
-                                icon: "lock.fill",
-                                placeholder: "Password",
-                                text: $password,
-                                keyboardType: .default,
-                                isSecure: true,
-                                showSecret: $showPassword
-                            )
-                            .focused($focus, equals: .password)
-                            .submitLabel(mode == .register ? .next : .go)
-                            .onSubmit {
-                                if mode == .register { focus = .confirm }
-                                else { Task { await signIn() } }
-                            }
+                            // Fields
+                            VStack(spacing: 12) {
+                                NEUField(
+                                    icon: "envelope.fill",
+                                    placeholder: "Email",
+                                    text: $email,
+                                    keyboardType: .emailAddress,
+                                    isSecure: false,
+                                    showSecret: .constant(false)
+                                )
+                                .focused($focus, equals: .email)
+                                .submitLabel(.next)
+                                .onSubmit { focus = .password }
 
-                            if mode == .register {
-                                InputField(
-                                    icon: "lock.rotation",
-                                    placeholder: "Confirm Password",
-                                    text: $confirmPassword,
+                                NEUField(
+                                    icon: "lock.fill",
+                                    placeholder: "Password",
+                                    text: $password,
                                     keyboardType: .default,
                                     isSecure: true,
                                     showSecret: $showPassword
                                 )
-                                .focused($focus, equals: .confirm)
-                                .submitLabel(.go)
-                                .onSubmit { Task { await register() } }
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-                        .animation(.default, value: mode)
+                                .focused($focus, equals: .password)
+                                .submitLabel(mode == .register ? .next : .go)
+                                .onSubmit {
+                                    if mode == .register { focus = .confirm }
+                                    else { Task { await signIn() } }
+                                }
 
-                        // Error / info message
-                        if let msg = auth.errorMessage {
-                            Text(msg)
-                                .font(.caption)
-                                .foregroundStyle(msg.contains("sent") ? .green : .red)
-                                .multilineTextAlignment(.center)
-                                .transition(.opacity)
-                        }
-
-                        // Primary button
-                        Button {
-                            Task {
-                                if mode == .signIn { await signIn() }
-                                else { await register() }
-                            }
-                        } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color.green)
-                                if auth.isLoading {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Text(mode == .signIn ? "Sign In" : "Create Account")
-                                        .font(.headline)
-                                        .foregroundStyle(.white)
+                                if mode == .register {
+                                    NEUField(
+                                        icon: "lock.rotation",
+                                        placeholder: "Confirm Password",
+                                        text: $confirmPassword,
+                                        keyboardType: .default,
+                                        isSecure: true,
+                                        showSecret: $showPassword
+                                    )
+                                    .focused($focus, equals: .confirm)
+                                    .submitLabel(.go)
+                                    .onSubmit { Task { await register() } }
+                                    .transition(.move(edge: .top).combined(with: .opacity))
                                 }
                             }
-                            .frame(height: 52)
-                        }
-                        .disabled(auth.isLoading || !isFormValid)
+                            .animation(.default, value: mode)
 
-                        // Forgot password (sign in only)
-                        if mode == .signIn {
-                            Button {
-                                Task { await auth.resetPassword(email: email) }
-                            } label: {
-                                Text("Forgot password?")
+                            // Error / info message
+                            if let msg = auth.errorMessage {
+                                Text(msg)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(msg.contains("sent") ? Color.epAccentDeep : Color.red)
+                                    .multilineTextAlignment(.center)
+                                    .transition(.opacity)
                             }
-                        }
 
-                        // Divider
-                        HStack {
-                            Rectangle().frame(height: 1).foregroundStyle(.quaternary)
-                            Text("or").font(.caption).foregroundStyle(.secondary)
-                            Rectangle().frame(height: 1).foregroundStyle(.quaternary)
-                        }
-
-                        // Google Sign-In
-                        Button {
-                            Task { await auth.signInWithGoogle() }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image("google_logo") // add asset, or use text fallback below
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 20, height: 20)
-                                Text("Continue with Google")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
+                            // Primary button
+                            Button {
+                                Task {
+                                    if mode == .signIn { await signIn() }
+                                    else { await register() }
+                                }
+                            } label: {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(LinearGradient(
+                                            colors: [.epAccent, .epAccentDeep],
+                                            startPoint: .leading, endPoint: .trailing))
+                                        .shadow(color: Color.epAccentDeep.opacity(0.4), radius: 8, y: 4)
+                                    if auth.isLoading {
+                                        ProgressView().tint(.white)
+                                    } else {
+                                        Text(mode == .signIn ? "Sign In" : "Create Account")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                                .frame(height: 52)
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
+                            .buttonStyle(.plain)
+                            .disabled(auth.isLoading || !isFormValid)
+                            .opacity(auth.isLoading || !isFormValid ? 0.6 : 1.0)
+
+                            // Forgot password
+                            if mode == .signIn {
+                                Button {
+                                    Task { await auth.resetPassword(email: email) }
+                                } label: {
+                                    Text("Forgot password?")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(t.inkFaint)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // Divider
+                            HStack(spacing: 12) {
+                                Rectangle()
+                                    .frame(height: 1)
+                                    .foregroundStyle(t.inkFaint.opacity(0.3))
+                                Text("or")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(t.inkFaint)
+                                Rectangle()
+                                    .frame(height: 1)
+                                    .foregroundStyle(t.inkFaint.opacity(0.3))
+                            }
+
+                            // Google Sign-In
+                            Button {
+                                Task { await auth.signInWithGoogle() }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image("google_logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 20, height: 20)
+                                    Text("Continue with Google")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(t.ink)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(t.bgDeep)
+                                        .shadow(color: t.shadowDark,  radius: 5, x: 4, y: 4)
+                                        .shadow(color: t.shadowLight, radius: 5, x: -4, y: -4)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(auth.isLoading)
                         }
-                        .disabled(auth.isLoading)
                     }
-                    .padding(24)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .shadow(color: .black.opacity(0.12), radius: 20, y: 8)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 48)
                 }
             }
         }
@@ -219,9 +244,9 @@ struct LoginView: View {
     }
 }
 
-// MARK: - Input Field
+// MARK: - Neumorphic Input Field
 
-private struct InputField: View {
+private struct NEUField: View {
     let icon: String
     let placeholder: String
     @Binding var text: String
@@ -229,22 +254,27 @@ private struct InputField: View {
     let isSecure: Bool
     @Binding var showSecret: Bool
 
+    @Environment(\.colorScheme) private var scheme
+    private var t: EPTheme { EPTheme(isDark: scheme == .dark) }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
+                .foregroundStyle(t.inkFaint)
+                .frame(width: 18)
 
             if isSecure && !showSecret {
                 SecureField(placeholder, text: $text)
                     .keyboardType(keyboardType)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .foregroundStyle(t.ink)
             } else {
                 TextField(placeholder, text: $text)
                     .keyboardType(keyboardType)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .foregroundStyle(t.ink)
             }
 
             if isSecure {
@@ -252,12 +282,18 @@ private struct InputField: View {
                     showSecret.toggle()
                 } label: {
                     Image(systemName: showSecret ? "eye.slash.fill" : "eye.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(t.inkFaint)
+                        .font(.system(size: 14))
                 }
             }
         }
-        .padding(14)
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(t.bgDeep)
+                .shadow(color: t.shadowDark,  radius: 3, x:  2, y:  2)
+                .shadow(color: t.shadowLight, radius: 3, x: -2, y: -2)
+        )
     }
 }
