@@ -253,7 +253,7 @@ struct LegalView: View {
     private var legalSections: [(title: String, body: String)] {[
         (
             "Terms of Use",
-            "By using Exit Plan ("the App"), you agree to these terms. The App is intended for personal use as a social escape tool. You agree not to use the App to deceive emergency services, harass others, or engage in any unlawful activity. Misuse of the App is solely your responsibility."
+            "By using Exit Plan (the App), you agree to these terms. The App is intended for personal use as a social escape tool. You agree not to use the App to deceive emergency services, harass others, or engage in any unlawful activity. Misuse of the App is solely your responsibility."
         ),
         (
             "No Emergency Use",

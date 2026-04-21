@@ -593,12 +593,10 @@ struct DeviceContactPicker: UIViewControllerRepresentable {
         let parent: DeviceContactPicker
         init(_ parent: DeviceContactPicker) { self.parent = parent }
 
-        // Multi-select
-        func contactPicker(_ picker: CNContactPickerViewController, didSelectContacts contacts: [CNContact]) {
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
             parent.onSelect(contacts)
         }
-        // Single-select fallback
-        func contactPicker(_ picker: CNContactPickerViewController, didSelectContact contact: CNContact) {
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
             parent.onSelect([contact])
         }
     }

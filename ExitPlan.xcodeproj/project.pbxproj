@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		913372582F97329400B64E6B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 913372572F97329400B64E6B /* FirebaseAuth */; };
+		9133725A2F97329400B64E6B /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 913372592F97329400B64E6B /* FirebaseCore */; };
+		9133725D2F97330300B64E6B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9133725C2F97330300B64E6B /* GoogleSignIn */; };
+		9133725F2F97330300B64E6B /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 9133725E2F97330300B64E6B /* GoogleSignInSwift */; };
+		913372632F9734B900B64E6B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 913372622F9734B900B64E6B /* GoogleService-Info.plist */; };
+		913372662F97369C00B64E6B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913372652F97369C00B64E6B /* LoginView.swift */; };
+		913372672F97369C00B64E6B /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913372642F97369C00B64E6B /* AuthManager.swift */; };
+		913372692F973D5D00B64E6B /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913372682F973D5D00B64E6B /* ProfileView.swift */; };
 		AA0000000000000000000101 /* ExitPlanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* ExitPlanApp.swift */; };
 		AA0000000000000000000102 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* ContentView.swift */; };
 		AA0000000000000000000103 /* CallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* CallManager.swift */; };
@@ -20,6 +28,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		913372622F9734B900B64E6B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		913372642F97369C00B64E6B /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		913372652F97369C00B64E6B /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		913372682F973D5D00B64E6B /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000001 /* ExitPlanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExitPlanApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* CallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallManager.swift; sourceTree = "<group>"; };
@@ -40,6 +52,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9133725A2F97329400B64E6B /* FirebaseCore in Frameworks */,
+				913372582F97329400B64E6B /* FirebaseAuth in Frameworks */,
+				9133725D2F97330300B64E6B /* GoogleSignIn in Frameworks */,
+				9133725F2F97330300B64E6B /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,6 +73,9 @@
 		CC0000000000000000000002 /* ExitPlan */ = {
 			isa = PBXGroup;
 			children = (
+				913372682F973D5D00B64E6B /* ProfileView.swift */,
+				913372642F97369C00B64E6B /* AuthManager.swift */,
+				913372652F97369C00B64E6B /* LoginView.swift */,
 				AA0000000000000000000001 /* ExitPlanApp.swift */,
 				AA0000000000000000000002 /* ContentView.swift */,
 				AA0000000000000000000003 /* CallManager.swift */,
@@ -69,6 +88,7 @@
 				AA0000000000000000000011 /* NotificationManager.swift */,
 				AA0000000000000000000012 /* FakeMessageView.swift */,
 				AA0000000000000000000013 /* MessageComposerView.swift */,
+				913372622F9734B900B64E6B /* GoogleService-Info.plist */,
 			);
 			path = ExitPlan;
 			sourceTree = "<group>";
@@ -125,6 +145,10 @@
 				Base,
 			);
 			mainGroup = CC0000000000000000000001;
+			packageReferences = (
+				913372562F97329400B64E6B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				9133725B2F97330300B64E6B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			productRefGroup = CC0000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -140,6 +164,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000000106 /* Assets.xcassets in Resources */,
+				913372632F9734B900B64E6B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,11 +179,14 @@
 				AA0000000000000000000102 /* ContentView.swift in Sources */,
 				AA0000000000000000000103 /* CallManager.swift in Sources */,
 				AA0000000000000000000104 /* FakeCallIntent.swift in Sources */,
+				913372692F973D5D00B64E6B /* ProfileView.swift in Sources */,
 				AA0000000000000000000105 /* FakeCaller.swift in Sources */,
 				AA0000000000000000000107 /* FakeMessage.swift in Sources */,
 				AA0000000000000000000108 /* NotificationManager.swift in Sources */,
 				AA0000000000000000000109 /* FakeMessageView.swift in Sources */,
 				AA0000000000000000000110 /* MessageComposerView.swift in Sources */,
+				913372662F97369C00B64E6B /* LoginView.swift in Sources */,
+				913372672F97369C00B64E6B /* AuthManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,12 +323,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ExitPlan/ExitPlan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 7NPJ38FK2X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ExitPlan/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Exit Plan";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -328,12 +357,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ExitPlan/ExitPlan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 7NPJ38FK2X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ExitPlan/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Exit Plan";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -376,6 +406,48 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		913372562F97329400B64E6B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.12.1;
+			};
+		};
+		9133725B2F97330300B64E6B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		913372572F97329400B64E6B /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 913372562F97329400B64E6B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		913372592F97329400B64E6B /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 913372562F97329400B64E6B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		9133725C2F97330300B64E6B /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9133725B2F97330300B64E6B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		9133725E2F97330300B64E6B /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9133725B2F97330300B64E6B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FF0000000000000000000001 /* Project object */;
 }
