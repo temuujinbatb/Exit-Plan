@@ -27,7 +27,7 @@
 		AA0000000000000000000005 /* FakeCaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeCaller.swift; sourceTree = "<group>"; };
 		AA0000000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AA0000000000000000000008 /* ExitPlan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExitPlan.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000008 /* decoe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = decoe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000009 /* ExitPlan.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ExitPlan.entitlements; sourceTree = "<group>"; };
 		AA0000000000000000000010 /* FakeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeMessage.swift; sourceTree = "<group>"; };
 		AA0000000000000000000011 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
@@ -76,7 +76,7 @@
 		CC0000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA0000000000000000000008 /* ExitPlan.app */,
+				AA0000000000000000000008 /* decoe.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -98,7 +98,7 @@
 			);
 			name = ExitPlan;
 			productName = ExitPlan;
-			productReference = AA0000000000000000000008 /* ExitPlan.app */;
+			productReference = AA0000000000000000000008 /* decoe.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -312,7 +312,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.temuujinbatb.exitplan;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = decoe;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -345,7 +345,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.temuujinbatb.exitplan;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = decoe;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
